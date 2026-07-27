@@ -1,11 +1,17 @@
-﻿"""make_figure4.py — regenerate Figure 4 for the 58-event sample."""
+"""make_figure4.py — regenerate Figure 4 for the 58-event sample.
+
+Usage (from repo root, after run_grid has produced the baseline CSV):
+  python -m src.make_figure4
+"""
 from pathlib import Path
+
 import pandas as pd
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-OUT = Path("output")
+OUT = Path(__file__).resolve().parents[1] / "output"
+
 t = pd.read_csv(OUT / "metrics_dd3pct_w30min_sep6h.csv",
                 parse_dates=["trough_ts"]).set_index("trough_ts")
 oct10 = [x for x in t.index if str(x.date()) == "2025-10-10"][0]
@@ -13,7 +19,7 @@ others = t.drop(oct10)
 
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4.5))
 
-# Panel (a): histogram
+# Panel (a): histogram of the SOL gap across the sample
 ax1.hist(others["sol_gap_pp"], bins=25, color="0.6",
          label="57 other BTC drawdowns >=3% (2024-2026)")
 ax1.hist([t.loc[oct10, "sol_gap_pp"]], bins=[10.8, 11.3], color="darkred",
@@ -29,14 +35,14 @@ ax1.set_title("(a) Empirical distribution of SOL futures-spot gap across 58 even
               fontsize=10)
 ax1.legend(fontsize=8)
 
-# Panel (b): top-10 bars
+# Panel (b): top-10 ranked bars
 top = t.nlargest(10, "sol_gap_pp").iloc[::-1]
 labels = [ts.strftime("%b %d, %Y") for ts in top.index]
 colors = ["darkred" if str(ts.date()) == "2025-10-10" else "0.6"
           for ts in top.index]
 bars = ax2.barh(labels, top["sol_gap_pp"], color=colors)
 for b, v in zip(bars, top["sol_gap_pp"]):
-    ax2.text(v + 0.15, b.get_y() + b.get_height()/2, f"{v:.2f}",
+    ax2.text(v + 0.15, b.get_y() + b.get_height() / 2, f"{v:.2f}",
              va="center", fontsize=8)
 ax2.set_xlabel("SOL Futures-Spot Gap (pp)")
 ax2.set_title("(b) Top 10 events ranked by SOL gap (12.6x larger than #2)",

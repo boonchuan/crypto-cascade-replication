@@ -64,20 +64,35 @@ def compute_event_metrics(ev: Event, spec: EventSpec,
     basis = bf["close"] - bs["close"]
     out["basis_swing"] = float(basis.max() - basis.min())
 
-    # (iv) mark-to-spot undershoot: mark low minus spot close at the same
-    # minute as the mark low
+    # (iv) mark-to-spot undershoot, SIMULTANEOUS definition (v1.1):
+    # the most negative same-minute close-to-close gap over the window.
+    # (v1.0 compared the mark candle LOW to the spot candle CLOSE, which
+    # mixes timestamps within the minute.) The candle-low comparison is
+    # retained as an auxiliary diagnostic, clearly labelled.
+    mark_spot_gap = bm["close"] - bs["close"]
+    out["mark_minus_spot"] = float(mark_spot_gap.min())
+    out["mark_minus_spot_minute"] = str(mark_spot_gap.idxmin())
     mark_low_ts = bm["low"].idxmin()
-    out["mark_minus_spot"] = float(bm.loc[mark_low_ts, "low"]
-                                   - bs.loc[mark_low_ts, "close"])
+    out["aux_marklow_minus_spotlow"] = float(bm.loc[mark_low_ts, "low"]
+                                             - bs.loc[mark_low_ts, "low"])
 
-    # (v) max intra-minute spread on BTC spot, percent
+    # (v) max intra-minute price RANGE on BTC spot, percent
+    # (v1.1 rename: this is a candle high-low range, not a bid-ask
+    # spread; column name kept for schema continuity, display label
+    # changed in make_tables.)
     out["max_intramin_spread"] = float(
         ((bs["high"] - bs["low"]) / bs["low"] * 100.0).max())
 
-    # (vi)-(vii) volume ratios vs 24h baseline
+    # (vi)-(vii) volume ratios vs 24h baseline; authoritative volume
+    # diagnostics recorded alongside (v1.1, Issue 4)
     base_mean = float(baseline_vol.mean())
     out["vol_surge_ratio"] = float(bs["volume"].mean() / base_mean)
     out["peak_vol_ratio"] = float(bs["volume"].max() / base_mean)
+    out["diag_baseline_mean_vol"] = base_mean
+    out["diag_baseline_median_vol"] = float(baseline_vol.median())
+    out["diag_window_mean_vol"] = float(bs["volume"].mean())
+    out["diag_window_peak_vol"] = float(bs["volume"].max())
+    out["diag_window_n_obs"] = int(len(bs))
 
     # (viii) volume lead: trough minute minus volume-peak minute
     vol_peak_ts = bs["volume"].idxmax()

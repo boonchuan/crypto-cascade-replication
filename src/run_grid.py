@@ -1,5 +1,5 @@
-﻿"""
-run_grid.py â€” Appendix B sensitivity grid.
+"""
+run_grid.py — Appendix B sensitivity grid.
 
 Reruns the full Appendix A pipeline under every combination of:
   drawdown threshold : 2, 3, 4, 5 (%)
@@ -55,7 +55,7 @@ def load_all() -> dict[str, pd.DataFrame]:
         path = cache_path(sym, kind)
         if not path.exists():
             raise FileNotFoundError(
-                f"{path} missing â€” run `python -m src.fetch_data` first")
+                f"{path} missing — run `python -m src.fetch_data` first")
         data[name] = pd.read_parquet(path).set_index("ts").sort_index()
     return data
 
@@ -111,14 +111,14 @@ def format_table_b1(grid: pd.DataFrame) -> str:
     lines = [
         "| Threshold | Window | De-overlap | N events | "
         "SOL gap | Basis swing | Mark undershoot | Vol surge | "
-        "Rank Î£\\|z\\| | Rank Mahal. |",
+        "Rank Σ\\|z\\| | Rank Mahal. |",
         "|---|---|---|---|---|---|---|---|---|---|",
     ]
     for _, r in grid.iterrows():
         def _c(v):
-            return str(int(v)) if pd.notna(v) else "â€”"
+            return str(int(v)) if pd.notna(v) else "—"
         if not r.get("oct10_found", False):
-            cells = ["â€”"] * 6
+            cells = ["—"] * 6
         else:
             cells = [_c(r[f"rank_{m}"]) for m in diag] + \
                     [_c(r["rank_sum_abs_z"]), _c(r["rank_mahalanobis"])]
@@ -161,10 +161,10 @@ def main():
 
     base = grid[grid["is_baseline"]].iloc[0]
     print(f"\nBaseline spec: {int(base['n_events'])} events "
-          f"(paper reports 62 â€” investigate any discrepancy before "
+          f"(revised paper reports the archived-vintage count; investigate "
+          f"any discrepancy against the release manifest before "
           f"updating the manuscript).")
 
 
 if __name__ == "__main__":
     main()
-

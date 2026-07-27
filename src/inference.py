@@ -45,9 +45,10 @@ def bootstrap_rank_cis(n_boot: int = 10_000) -> pd.DataFrame:
         x = float(tbl.loc[oct10_ts, m])
         others = tbl[m].drop(oct10_ts).values
 
-        # Bootstrap z: resample the full sample with replacement
-        idx = RNG.integers(0, len(vals), size=(n_boot, len(vals)))
-        samp = vals[idx]
+        # Bootstrap z (v1.1): resample the 57 COMPARISON events with
+        # replacement, holding October 10 out as the fixed focal value.
+        idx = RNG.integers(0, len(others), size=(n_boot, len(others)))
+        samp = others[idx]
         with np.errstate(divide="ignore", invalid="ignore"):
             z_boot = (x - samp.mean(axis=1)) / samp.std(axis=1, ddof=1)
         z_boot = z_boot[np.isfinite(z_boot)]
@@ -65,14 +66,18 @@ def bootstrap_rank_cis(n_boot: int = 10_000) -> pd.DataFrame:
                 continue
             rest = np.delete(extreme, j)
             loo_ranks.append(int((rest > x_e).sum() + 1))
-        # Empirical exceedance: share of other events at least as extreme
-        exceed = float(((others * EXTREME_SIGN[m]) >= x_e).mean())
+        # Empirical exceedance FRACTION k/57: count of comparison
+        # events at least as extreme (v1.1: reported as a fraction, not
+        # a permutation p-value; the smallest attainable one-sided
+        # rank-test p with n=58 is 1/58 ~= 0.017).
+        k_exceed = int(((others * EXTREME_SIGN[m]) >= x_e).sum())
+        exceed = k_exceed
 
         rows.append({
             "metric": m, "oct10_value": round(x, 3),
             "z_ci_lo": round(float(lo), 2), "z_ci_hi": round(float(hi), 2),
             "loo_rank_min": min(loo_ranks), "loo_rank_max": max(loo_ranks),
-            "empirical_exceedance": round(exceed, 4),
+            "exceed_k_of_57": f"{exceed}/{len(others)}",
         })
 
     out = pd.DataFrame(rows)
@@ -82,7 +87,7 @@ def bootstrap_rank_cis(n_boot: int = 10_000) -> pd.DataFrame:
 
 # -------------------------------------------------------------------- 3
 
-def trivariate_var(window_hours: float = 6.0, maxlags: int = 10):
+def trivariate_var(window_hours: int = 6, maxlags: int = 10):
     """VAR on 1-minute log returns of BTC spot, perpetual, and mark price
     over a window bracketing the October 10 cascade. Reports lag order
     (AIC/BIC), within-system Granger causality tests, and saves IRFs.
@@ -101,8 +106,8 @@ def trivariate_var(window_hours: float = 6.0, maxlags: int = 10):
         _load("mark", "BTCUSDT", "mark", "close"),
     ], axis=1)
 
-    w0 = OCT10 - pd.Timedelta(hours=window_hours / 2)
-    w1 = OCT10 + pd.Timedelta(hours=window_hours / 2)
+    w0 = OCT10 - pd.Timedelta(minutes=window_hours * 30)
+    w1 = OCT10 + pd.Timedelta(minutes=window_hours * 30)
     ret = np.log(px.loc[w0:w1]).diff().dropna()
 
     # Guard: near-perfect collinearity among the three return series makes

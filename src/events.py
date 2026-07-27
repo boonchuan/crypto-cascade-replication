@@ -26,10 +26,13 @@ class EventSpec:
 
     def analysis_bounds(self) -> tuple[int, int]:
         """Minutes before/after the trough for the relocated analysis
-        window. Baseline (30 min) uses [t*-10, t*+20] per Appendix A;
-        other lengths scale proportionally (1/3 before, 2/3 after)."""
+        window [t*-before, t*+after], INCLUSIVE of both endpoints, sized
+        so the window contains exactly `window_min` one-minute
+        observations: before + after + 1 = window_min. Baseline (30 min)
+        gives [t*-10, t*+19] = 30 observations. (v1.1 fix: v1.0 used
+        [t*-10, t*+20] = 31 observations under pandas inclusive .loc.)"""
         before = self.window_min // 3
-        after = self.window_min - before
+        after = self.window_min - before - 1
         return before, after
 
 
@@ -41,12 +44,17 @@ class Event:
 
 
 def rolling_drawdown(close: pd.Series, window_min: int) -> pd.Series:
-    """Appendix A Step 2: DD(t) = min(C[t-w:t]) / max(C[t-w:t]) - 1, in %.
+    """Directional trailing drawdown, in percent:
 
-    Implemented on the trailing window ending at t (inclusive)."""
-    roll_min = close.rolling(window_min, min_periods=window_min).min()
+        DD(t) = C(t) / max(C(t-w..t)) - 1
+
+    i.e. the current price relative to the highest price over the
+    trailing window. This is ~0 during rallies and most negative at a
+    trough that follows a peak, enforcing peak-before-trough ordering.
+    (v1.1 fix: the v1.0 scan used min(window)/max(window)-1, which is
+    direction-agnostic and can flag pure rallies as drawdowns.)"""
     roll_max = close.rolling(window_min, min_periods=window_min).max()
-    return (roll_min / roll_max - 1.0) * 100.0
+    return (close / roll_max - 1.0) * 100.0
 
 
 def select_events(btc_spot: pd.DataFrame, spec: EventSpec) -> list[Event]:
