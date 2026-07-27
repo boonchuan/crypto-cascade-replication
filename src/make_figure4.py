@@ -106,7 +106,7 @@ def main() -> None:
     ax[1].set_xlim(0, gap * 1.13)
 
     fig.suptitle(
-        f"Figure 4. Distributional Evidence: October 10 as Statistical Outlier "
+        f"Figure 3. Distributional Evidence: October 10 as Statistical Outlier "
         f"(n = {n} BTC drawdown events, 2024-2026)",
         fontsize=12,
     )
